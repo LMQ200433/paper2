@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>甘南红色文化 · 长征路线全景</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+    </script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:"PingFang SC","微软雅黑",sans-serif; background:#f0f2f5; height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+        .header { height:64px; background:linear-gradient(135deg,#b71c1c 0%,#c8102e 100%); color:#fff; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; letter-spacing:3px; box-shadow:0 2px 12px rgba(200,16,46,0.35); z-index:10; flex-shrink:0; }
+        .header .sub { font-size:14px; font-weight:400; letter-spacing:2px; margin-left:16px; opacity:0.85; background:rgba(255,255,255,0.18); padding:2px 16px; border-radius:20px; }
+        .container { display:flex; flex:1; width:100%; position:relative; min-height:0; }
+        .sidebar { width:380px; min-width:380px; background:#fff; padding:10px 12px; overflow-y:auto; border-right:1px solid #e8eaed; box-shadow:2px 0 12px rgba(0,0,0,0.04); z-index:5; display:flex; flex-direction:column; }
+        .sidebar::-webkit-scrollbar { width:4px; }
+        .sidebar::-webkit-scrollbar-thumb { background:#c8102e; border-radius:8px; }
+        .sidebar-title { font-size:17px; font-weight:600; color:#1a1a2e; display:flex; align-items:center; gap:8px; padding-bottom:8px; border-bottom:2px solid #f0f0f0; margin-bottom:8px; flex-wrap:wrap; }
+        .sidebar-title .badge { background:#c8102e; color:#fff; font-size:12px; padding:0 12px; border-radius:20px; line-height:24px; }
+        .sidebar-title .badge-gold { background:#f5a623; color:#fff; font-size:12px; padding:0 12px; border-radius:20px; line-height:24px; }
+        .category-label { font-size:14px; font-weight:600; color:#555; margin:6px 0 2px 4px; border-bottom:1px dashed #ddd; padding-bottom:3px; }
+        .point-item { display:flex; align-items:flex-start; padding:6px 10px; margin-bottom:3px; background:#f8f9fc; border-radius:6px; border-left:4px solid transparent; cursor:pointer; transition:all 0.2s ease; }
+        .point-item:hover { background:#fff2f0; border-left-color:#c8102e; }
+        .point-item .index { width:22px; height:22px; background:#c8102e; color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; flex-shrink:0; margin-right:8px; margin-top:2px; }
+        .point-item .index.gold { background:#f5a623; }
+        .point-item .info { flex:1; }
+        .point-item .name { font-size:14px; font-weight:600; color:#1a1a2e; }
+        .point-item .name small { font-weight:400; font-size:11px; color:#888; margin-left:4px; }
+        .point-item .desc { font-size:12px; color:#666; margin-top:1px; }
+        .point-item .story-preview { background:#fef6f0; border-radius:4px; padding:0 8px; margin-top:2px; font-size:12px; color:#444; border-left:3px solid #c8102e; max-height:0; overflow:hidden; transition:max-height 0.4s ease, padding 0.3s ease; }
+        .point-item.active .story-preview { max-height:200px; padding:5px 8px; }
+        .point-item .arrow { color:#bbb; font-size:16px; align-self:center; }
+        .point-item .type-tag { font-size:10px; background:#e0e0e0; padding:0 8px; border-radius:10px; margin-left:6px; color:#555; white-space:nowrap; }
+        .point-item .type-tag.gold { background:#f5a623; color:#fff; }
+        .nearby-section { margin-top:10px; padding-top:8px; border-top:2px solid #f0f0f0; }
+        .nearby-title { font-size:15px; font-weight:600; color:#1a1a2e; display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+        .nearby-title .badge-nearby { background:#2d7d9a; color:#fff; font-size:12px; padding:0 12px; border-radius:20px; line-height:24px; }
+        .nearby-item { display:flex; flex-direction:column; padding:5px 10px; margin-bottom:3px; background:#fafafa; border-radius:6px; border-left:3px solid #2d7d9a; font-size:13px; color:#333; }
+        .nearby-item .n-header { display:flex; align-items:center; }
+        .nearby-item .n-icon { margin-right:8px; font-size:14px; }
+        .nearby-item .n-name { font-weight:600; }
+        .nearby-item .n-type { font-size:10px; background:#e0e0e0; padding:0 8px; border-radius:10px; margin-left:6px; color:#555; }
+        .nearby-item .n-desc { color:#777; font-size:12px; margin-top:1px; padding-left:24px; }
+        .nearby-item .n-transport { font-size:12px; color:#2d7d9a; margin-top:1px; padding-left:24px; }
+        .sidebar-footer { margin-top:auto; padding-top:8px; border-top:1px solid #f0f0f0; font-size:12px; color:#999; text-align:center; }
+        #map { flex:1; height:100%; background:#e9edf2; position:relative; }
+        .leaflet-popup-content { font-family:"PingFang SC","微软雅黑",sans-serif; min-width:200px; max-width:320px; }
+        .leaflet-popup-content .iw-title { font-size:17px; font-weight:700; color:#b71c1c; border-bottom:2px solid #f0f0f0; padding-bottom:4px; margin-bottom:4px; }
+        .leaflet-popup-content .iw-desc { font-size:14px; color:#444; line-height:1.5; }
+        .leaflet-popup-content .iw-story { font-size:13px; color:#555; background:#f9f3ee; padding:6px 8px; border-radius:6px; margin-top:4px; border-left:3px solid #c8102e; max-height:120px; overflow-y:auto; }
+        .leaflet-popup-content .iw-tag { display:inline-block; background:#c8102e; color:#fff; font-size:11px; padding:0 10px; border-radius:12px; margin-top:4px; line-height:22px; }
+        .leaflet-popup-content .iw-tag.nearby-tag { background:#2d7d9a; }
+        .leaflet-popup-content .iw-tag.religion-tag { background:#8e44ad; }
+        .leaflet-popup-content .iw-tag.route-tag { background:#f5a623; }
+        .leaflet-popup-content .iw-transport { font-size:13px; color:#2d7d9a; margin-top:4px; }
+        .cover { position:fixed; top:0; left:0; width:100%; height:100%; background:radial-gradient(circle at 30% 30%,#8b1a1a,#2d0a0a); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:1000; color:#fff; text-align:center; padding:20px; opacity:0; transform:scale(0.85); animation:coverEnter 1.2s cubic-bezier(0.23,1,0.32,1) forwards; transition:opacity 0.6s ease, transform 0.6s ease; }
+        .cover.hide { opacity:0; transform:scale(1.2); pointer-events:none; }
+        @keyframes coverEnter { 0%{ opacity:0; transform:scale(0.85); } 100%{ opacity:1; transform:scale(1); } }
+        .cover .logo { font-size:48px; font-weight:700; letter-spacing:6px; text-shadow:0 4px 20px rgba(0,0,0,0.5); margin-bottom:10px; background:linear-gradient(to right,#f7d875,#ffb347); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+        .cover .sub-logo { font-size:18px; letter-spacing:8px; margin-bottom:30px; opacity:0.9; font-weight:300; border-top:2px solid rgba(255,215,0,0.3); padding-top:12px; width:60%; }
+        .cover .star { display:inline-block; font-size:40px; margin-bottom:20px; animation:pulseStar 2s infinite alternate; }
+        @keyframes pulseStar { 0%{ transform:scale(1) rotate(0deg); opacity:0.8; } 100%{ transform:scale(1.2) rotate(15deg); opacity:1; } }
+        .cover .btn-start { background:#f7d875; color:#2d0a0a; border:none; padding:14px 48px; font-size:20px; font-weight:600; border-radius:50px; cursor:pointer; box-shadow:0 8px 30px rgba(247,216,117,0.4); transition:all 0.3s ease; letter-spacing:4px; margin-top:10px; }
+        .cover .btn-start:hover { transform:translateY(-3px) scale(1.03); box-shadow:0 12px 40px rgba(247,216,117,0.6); }
+        .cover .credit { position:absolute; bottom:30px; font-size:14px; opacity:0.5; letter-spacing:2px; }
+        .btn-know { position:fixed; bottom:30px; right:30px; z-index:999; background:#c8102e; color:#fff; border:none; padding:12px 28px; border-radius:40px; font-size:16px; font-weight:600; letter-spacing:2px; box-shadow:0 6px 24px rgba(200,16,46,0.5); cursor:pointer; transition:all 0.3s ease; opacity:0; transform:translateY(20px); pointer-events:none; }
+        .btn-know.show { opacity:1; transform:translateY(0); pointer-events:auto; }
+        .btn-know:hover { transform:translateY(-3px) scale(1.04); box-shadow:0 10px 32px rgba(200,16,46,0.6); }
+        .poem-modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px); z-index:2000; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity 0.5s ease; padding:20px; }
+        .poem-modal.show { opacity:1; pointer-events:auto; }
+        .poem-modal .modal-box { background:linear-gradient(145deg,#fdf6e3,#f5e6ca); max-width:680px; width:100%; padding:40px 36px 32px; border-radius:20px; box-shadow:0 20px 60px rgba(0,0,0,0.5); text-align:center; transform:scale(0.9); transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1); border:2px solid #c8102e; }
+        .poem-modal.show .modal-box { transform:scale(1); }
+        .poem-modal .modal-box .modal-title { font-size:28px; font-weight:700; color:#8b1a1a; letter-spacing:6px; border-bottom:2px solid #c8102e; padding-bottom:12px; margin-bottom:20px; }
+        .poem-modal .modal-box .modal-body { font-size:17px; line-height:2; color:#2d1b1b; font-family:"楷体","KaiTi","STKaiti",serif; text-align:left; padding:0 10px; white-space:pre-wrap; }
+        .poem-modal .modal-box .modal-body p { text-indent:2em; margin-bottom:0.8em; }
+        .poem-modal .modal-box .modal-body .sign { text-align:right; font-weight:600; color:#8b1a1a; margin-top:10px; text-indent:0; }
+        .poem-modal .modal-box .btn-close-poem { margin-top:28px; padding:10px 40px; background:#c8102e; color:#fff; border:none; border-radius:30px; font-size:16px; font-weight:600; letter-spacing:2px; cursor:pointer; transition:0.3s; box-shadow:0 4px 16px rgba(200,16,46,0.3); }
+        .poem-modal .modal-box .btn-close-poem:hover { background:#a00d24; transform:scale(1.03); }
+        @media (max-width:768px) { .sidebar { width:280px; min-width:280px; padding:8px 6px; } .header { font-size:18px; letter-spacing:2px; } .header .sub { font-size:12px; margin-left:8px; padding:0 12px; } .cover .logo { font-size:36px; } .cover .sub-logo { font-size:16px; width:80%; } .btn-know { padding:10px 20px; font-size:14px; bottom:20px; right:20px; } .poem-modal .modal-box { padding:30px 20px 24px; } .poem-modal .modal-box .modal-title { font-size:22px; } .poem-modal .modal-box .modal-body { font-size:15px; } }
+        @media (max-width:576px) { .container { flex-direction:column; height:auto; flex:1; } .sidebar { width:100%; min-width:unset; height:220px; border-right:none; border-bottom:1px solid #e8eaed; padding:4px 6px; flex-shrink:0; } #map { flex:1; min-height:300px; } .sidebar-footer { display:none; } .cover .logo { font-size:28px; } .cover .sub-logo { font-size:14px; width:90%; } .cover .btn-start { padding:10px 24px; font-size:15px; } .btn-know { padding:8px 16px; font-size:13px; bottom:16px; right:16px; } .poem-modal .modal-box { padding:20px 16px 18px; } .poem-modal .modal-box .modal-title { font-size:18px; } .poem-modal .modal-box .modal-body { font-size:14px; line-height:1.8; } }
+    </style>
+</head>
+<body>
+
+<div class="cover" id="cover">
+    <div class="star">⭐</div>
+    <div class="logo">甘南 · 红色长征</div>
+    <div class="sub-logo">甘肃段路线重点标注</div>
+    <button class="btn-start" id="btnStart">开始探索</button>
+    <div class="credit">—— 红军不怕远征难 · 万水千山只等闲 ——</div>
+</div>
+
+<header class="header">
+    <span>🚩 甘肃长征路线 · 甘南红色文化</span>
+    <span class="sub">重点标注 · 精神传承</span>
+</header>
+
+<div class="container">
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-title">
+            📍 红色遗址 & 长征节点
+            <span class="badge" id="totalBadge">18 处</span>
+            <span class="badge-gold">🌟 路线重点</span>
+        </div>
+        <div id="pointList"></div>
+        <div class="nearby-section">
+            <div class="nearby-title">
+                🏛️ 推荐打卡地
+                <span class="badge-nearby">8 处</span>
+            </div>
+            <div id="nearbyList"></div>
+        </div>
+        <div class="sidebar-footer">
+            <i>🖱</i> 点击点位查看故事 &nbsp;·&nbsp; <i>🗺</i> 长征主线约 300 km
+        </div>
+    </aside>
+    <div id="map"></div>
+</div>
+
+<button class="btn-know" id="btnKnow">我已知晓</button>
+
+<div class="poem-modal" id="poemModal">
+    <div class="modal-box">
+        <div class="modal-title">★ 铭记 · 传承</div>
+        <div class="modal-body">
+            <p>长征是中国共产党领导中国人民英勇革命的壮丽史诗。甘南，作为红军长征进入甘肃的第一站，见证了无数革命先烈的英勇足迹与赤诚情怀。</p>
+            <p>从俄界的战略抉择，到腊子口的铁血攻坚；从哈达铺的加油站，到会宁的胜利会师——每一处遗址都在诉说着信仰的力量，每一段故事都闪耀着民族精神的光芒。</p>
+            <p>如今，我们站在这片红色热土上，更应珍惜来之不易的幸福生活，传承红色基因，弘扬长征精神，走好我们这一代人的新长征路。</p>
+            <div class="sign">—— 不忘初心，牢记使命 ——</div>
+        </div>
+        <button class="btn-close-poem" id="btnClosePoem">牢记使命</button>
+    </div>
+</div>
+
+<script>
+    const POINTS = [
+        { id:0, name:'俄界会议旧址', city:'迭部县达拉乡', desc:'1935年党中央召开俄界会议，确定北上战略', story:'1935年9月12日，中共中央政治局在俄界召开扩大会议，决定继续北上，创建川陕甘根据地。', lng:103.80, lat:33.90, tag:'全国重点文保', category:'核心遗址' },
+        { id:1, name:'茨日那毛泽东旧居', city:'迭部县旺藏乡', desc:'毛泽东下达“夺取腊子口”命令之地', story:'1935年9月14日，毛泽东在此下达“以三天行程夺取腊子口”的命令。', lng:104.05, lat:34.02, tag:'全国重点文保', category:'核心遗址' },
+        { id:2, name:'腊子口战役遗址', city:'迭部县腊子口镇', desc:'红军突破天险，打开北上通道', story:'1935年9月17日，红军攻克天险腊子口，是长征在甘肃最关键的一战。', lng:104.187, lat:34.085, tag:'全国重点文保', category:'核心遗址' },
+        { id:3, name:'哈达铺红军长征纪念馆', city:'陇南市宕昌县', desc:'“红军长征加油站”，决定北上陕北', story:'1935年9月，红军在哈达铺休整并获知陕北有红军，作出向陕北进军的重大决策。', lng:104.396, lat:33.797, tag:'长征关键节点', category:'长征节点', isRoute:true },
+        { id:4, name:'榜罗镇会议旧址', city:'定西市通渭县', desc:'决定将陕北作为革命大本营', story:'1935年9月27日，中共中央在榜罗镇召开会议，正式决定将长征落脚点放在陕北。', lng:105.069, lat:35.206, tag:'长征关键节点', category:'长征节点', isRoute:true },
+        { id:5, name:'会宁红军会师旧址', city:'白银市会宁县', desc:'红军三大主力胜利会师，长征结束', story:'1936年10月，红一、二、四方面军在会宁会师，标志长征胜利结束。', lng:105.052, lat:35.694, tag:'长征关键节点', category:'长征节点', isRoute:true },
+        { id:6, name:'腊子口战役纪念馆', city:'迭部县腊子口镇', desc:'专题纪念馆，展示腊子口战役历史', story:'通过实物、图片、场景再现，全面展示腊子口战役的悲壮历史。', lng:104.190, lat:34.080, tag:'纪念馆', category:'纪念馆' },
+        { id:7, name:'中共中央西北局洮州会议纪念馆', city:'临潭县新城镇', desc:'1936年召开“洮州会议”，依托北宋古建', story:'1936年9月28日，中共中央西北局在新城镇召开洮州会议，研究战略方向。', lng:103.56, lat:34.76, tag:'纪念馆', category:'纪念馆' },
+        { id:8, name:'杨土司革命纪念馆', city:'卓尼县柳林镇', desc:'纪念卓尼土司杨积庆，开仓放粮支援红军', story:'杨积庆暗中开仓放粮20余万斤，为红军攻打腊子口奠定物质基础。', lng:103.25, lat:34.58, tag:'纪念馆', category:'纪念馆' },
+        { id:9, name:'宣侠父烈士纪念馆', city:'玛曲县姜艾路', desc:'纪念最早在甘南开展革命工作的共产党员', story:'宣侠父深入藏区宣传革命思想，为民族团结和革命事业做出贡献。', lng:102.08, lat:33.97, tag:'纪念馆', category:'纪念馆' },
+        { id:10, name:'黄正清将军纪念馆', city:'夏河县拉卜楞镇', desc:'展示藏族爱国将领黄正清的一生', story:'黄正清历任国民政府参议、甘肃省政协副主席等职，为民族团结奋斗。', lng:102.52, lat:35.20, tag:'纪念馆', category:'纪念馆' },
+        { id:11, name:'腊子口战役纪念碑', city:'迭部县腊子口镇', desc:'1980年修建，纪念牺牲的红军将士', story:'腊子口战役纪念碑是省级文物保护单位，铭刻着红军英勇事迹。', lng:104.185, lat:34.083, tag:'纪念碑', category:'纪念设施' },
+        { id:12, name:'崔古仓开仓放粮遗址', city:'迭部县旺藏镇', desc:'杨土司授意开仓放粮20多万斤支援红军', story:'1935年9月，杨土司秘密命令守仓人员打开粮仓，将粮食放给红军。', lng:104.08, lat:34.03, tag:'重要遗址', category:'其他遗址' },
+        { id:13, name:'肋巴佛烈士纪念碑', city:'卓尼县柳林镇', desc:'纪念藏族革命烈士肋巴活佛', story:'肋巴佛参加甘南农民起义，后加入中国共产党，为革命献身。', lng:103.28, lat:34.60, tag:'纪念碑', category:'纪念设施' },
+        { id:14, name:'甘南农牧民起义泉滩遗址', city:'临潭县冶力关乡', desc:'1943年肋巴佛等人起义誓师地', story:'1943年，肋巴佛、王仲甲等在泉滩率众起义，反抗国民党统治。', lng:103.65, lat:34.88, tag:'起义遗址', category:'其他遗址' },
+        { id:15, name:'禅定寺会议旧址', city:'卓尼县', desc:'红军长征期间会议遗址，红色+宗教融合', story:'红军途经卓尼时在禅定寺召开会议，商讨民族政策和地方工作。', lng:103.22, lat:34.55, tag:'会议旧址', category:'其他遗址' },
+        { id:16, name:'拉卜楞寺红色教育基地', city:'夏河县拉卜楞镇', desc:'藏传佛教与红色教育融合的独特基地', story:'拉卜楞寺僧侣曾为红军提供帮助，现为红色教育与宗教文化综合体。', lng:102.518, lat:35.202, tag:'宗教·红色融合', category:'宗教融合', isReligion:true },
+        { id:17, name:'新城苏维埃旧址', city:'临潭县新城镇', desc:'甘南州第一个苏维埃政府所在地', story:'1936年8月，红军在临潭县新城镇成立甘南州第一个苏维埃政府。', lng:103.55, lat:34.75, tag:'全国重点文保', category:'核心遗址' }
+    ];
+
+    const NEARBY = [
+        { name:'八角城·白石崖', desc:'甘加秘境，千年古城与白石崖寺，藏族文化体验', lng:102.60, lat:35.25, type:'自然人文', transport:'从夏河县城驱车约40分钟（30公里）', icon:'🏔️' },
+        { name:'米拉日巴佛阁', desc:'全藏区唯一供奉米拉日巴尊者的九层佛阁', lng:102.90, lat:35.00, type:'宗教建筑', transport:'从合作市驱车约15分钟（10公里）', icon:'🛕' },
+        { name:'桑科草原', desc:'甘南最美草原之一，红军长征曾穿越此地', lng:102.50, lat:35.10, type:'自然风光', transport:'从夏河县城驱车约20分钟（15公里）', icon:'🌾' },
+        { name:'拉卜楞寺', desc:'世界藏学府，红军长征期间僧侣提供帮助', lng:102.518, lat:35.202, type:'宗教圣地', transport:'夏河县城内步行或乘车可达', icon:'🕍', isReligion:true },
+        { name:'冶力关风景区', desc:'国家森林公园，兼有红色遗址（泉滩起义）', lng:103.63, lat:34.92, type:'自然风光', transport:'从临潭县驱车约1小时（50公里）', icon:'🌲' },
+        { name:'卓尼大峪沟', desc:'国家级森林公园，杨土司故里，自然与人文交融', lng:103.30, lat:34.50, type:'自然风光', transport:'从卓尼县城驱车约30分钟（20公里）', icon:'🏞️' },
+        { name:'玛曲黄河第一弯', desc:'黄河九曲第一弯，宣侠父曾在此开展革命活动', lng:102.00, lat:33.90, type:'自然景观', transport:'从玛曲县城驱车约15分钟（10公里）', icon:'🌊' },
+        { name:'甘南州博物馆', desc:'集中展示甘南历史文化与革命文物，包括红军长征资料', lng:102.92, lat:35.02, type:'博物馆', transport:'合作市区内交通便捷', icon:'🏛️' }
+    ];
+
+    const routePoints = [
+        [33.90,103.80],[34.02,104.05],[34.085,104.187],[34.05,104.25],[33.97,104.32],[33.90,104.38],
+        [33.797,104.396],[33.85,104.50],[34.05,104.70],[34.30,104.90],[34.80,105.00],
+        [35.206,105.069],[35.30,105.05],[35.45,105.02],[35.60,105.01],[35.694,105.052]
+    ];
+    const routeLabels = [
+        { lat:33.90, lng:103.80, name:'俄界' }, { lat:34.02, lng:104.05, name:'茨日那' },
+        { lat:34.085, lng:104.187, name:'腊子口' }, { lat:33.797, lng:104.396, name:'哈达铺' },
+        { lat:35.206, lng:105.069, name:'榜罗镇' }, { lat:35.694, lng:105.052, name:'会宁' }
+    ];
+
+    const pointList = document.getElementById('pointList');
+    const nearbyList = document.getElementById('nearbyList');
+    document.getElementById('totalBadge').textContent = POINTS.length + ' 处';
+    const categoryOrder = ['长征节点','核心遗址','纪念馆','纪念设施','其他遗址','宗教融合'];
+    let pointIndex = 0;
+    categoryOrder.forEach(cat => {
+        const items = POINTS.filter(p => p.category === cat);
+        if(items.length===0) return;
+        const label = document.createElement('div');
+        label.className = 'category-label';
+        label.textContent = cat;
+        pointList.appendChild(label);
+        items.forEach((p) => {
+            const div = document.createElement('div');
+            div.className = 'point-item';
+            div.dataset.id = p.id;
+            const globalIdx = pointIndex++;
+            const tagClass = p.isRoute ? 'gold' : '';
+            const tagHtml = p.tag ? `<span class="type-tag ${tagClass}">${p.tag}</span>` : '';
+            const indexClass = p.isRoute ? 'gold' : '';
+            div.innerHTML = `<span class="index ${indexClass}">${globalIdx+1}</span><div class="info"><div class="name">${p.name} <small>${p.city}</small> ${tagHtml}</div><div class="desc">${p.desc}</div><div class="story-preview">${p.story}</div></div><span class="arrow">›</span>`;
+            div.addEventListener('click', function() {
+                document.querySelectorAll('.point-item').forEach(el => el.classList.remove('active'));
+                this.classList.add('active');
+                const pdata = POINTS.find(pp => pp.id === parseInt(this.dataset.id));
+                if(pdata) { map.setView([pdata.lat, pdata.lng], 11, { animate: true }); const marker = markers.find(m => m.options.pointId === pdata.id); if(marker) marker.openPopup(); }
+                document.querySelectorAll('.point-item').forEach(el => { el.style.background = '#f8f9fc'; el.style.borderLeftColor = 'transparent'; });
+                this.style.background = '#fff2f0'; this.style.borderLeftColor = '#c8102e';
+            });
+            pointList.appendChild(div);
+        });
+    });
+
+    NEARBY.forEach(n => {
+        const div = document.createElement('div');
+        div.className = 'nearby-item';
+        div.innerHTML = `<div class="n-header"><span class="n-icon">${n.icon}</span><span class="n-name">${n.name}</span><span class="n-type">${n.type}</span></div><div class="n-desc">${n.desc}</div><div class="n-transport"><i>🚗</i> ${n.transport}</div>`;
+        nearbyList.appendChild(div);
+    });
+
+    const map = L.map('map', { center:[34.5,104.0], zoom:8, zoomControl:true, attributionControl:true });
+    L.tileLayer('https://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', { attribution:'&copy; <a href="https://www.amap.com/">高德地图</a>', maxZoom:18, minZoom:4, subdomains:['webrd01','webrd02','webrd03','webrd04'] }).addTo(map);
+
+    const markers = [];
+    function createMarkerIcon(index, color='#c8102e', isGold=false) {
+        const bg = isGold ? '#f5a623' : color;
+        return L.divIcon({ html:`<div style="width:34px;height:34px;background:${bg};border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;font-weight:700;border:3px solid #fff;box-shadow:0 4px 16px rgba(0,0,0,0.4);">${index+1}</div>`, iconSize:[34,34], iconAnchor:[17,34], popupAnchor:[0,-34] });
+    }
+    POINTS.forEach((p,i) => {
+        let color='#c8102e', isGold=false;
+        if(p.category==='长征节点'){ color='#f5a623'; isGold=true; } else if(p.category==='纪念馆') color='#e67e22'; else if(p.category==='纪念设施') color='#2c3e50'; else if(p.category==='其他遗址') color='#16a085'; else if(p.category==='宗教融合') color='#8e44ad';
+        const icon = createMarkerIcon(i, color, isGold);
+        const marker = L.marker([p.lat, p.lng], { icon, title:p.name, riseOnHover:true, pointId:p.id }).addTo(map);
+        const tagClass = p.isReligion ? 'religion-tag' : (p.isRoute ? 'route-tag' : 'iw-tag');
+        marker.bindPopup(L.popup({ offset:[0,-18], closeButton:true, autoPan:true, maxWidth:280 }).setContent(`<div class="iw-title">${p.name}</div><div class="iw-desc">${p.desc}</div><div class="iw-story">📖 ${p.story}</div><div class="iw-tag ${tagClass}">${p.tag}</div>`));
+        markers.push(marker);
+    });
+
+    NEARBY.forEach(n => {
+        let color='#3498db';
+        if(n.type==='宗教圣地'||n.isReligion) color='#8e44ad'; else if(n.type==='自然风光') color='#2ecc71'; else if(n.type==='博物馆') color='#f39c12';
+        const icon = L.divIcon({ html:`<div style="width:26px;height:26px;background:${color};border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;border:2px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,0.3);">${n.icon}</div>`, iconSize:[26,26], iconAnchor:[13,26], popupAnchor:[0,-26] });
+        const marker = L.marker([n.lat, n.lng], { icon, title:n.name, riseOnHover:true }).addTo(map);
+        marker.bindPopup(L.popup({ offset:[0,-10], closeButton:true, autoPan:true, maxWidth:250 }).setContent(`<div class="iw-title">${n.icon} ${n.name}</div><div class="iw-desc">${n.desc}</div><div class="iw-transport">🚗 ${n.transport}</div><div class="iw-tag nearby-tag">${n.type}</div>`));
+    });
+
+    L.polyline(routePoints, { color:'#c8102e', weight:6, opacity:0.9, lineJoin:'round', lineCap:'round', smoothFactor:1 }).addTo(map);
+    L.polyline(routePoints, { color:'#f1c40f', weight:3, opacity:0.6, dashArray:'15,10', lineJoin:'round', lineCap:'round', smoothFactor:1 }).addTo(map);
+
+    const arrowIcon = L.divIcon({ html:'▶', iconSize:[20,20], iconAnchor:[10,10] });
+    [[34.05,104.15],[33.85,104.45],[34.55,104.80],[35.10,105.05],[35.50,105.03]].forEach(pos => { L.marker(pos, { icon:arrowIcon, interactive:false }).addTo(map); });
+
+    routeLabels.forEach(label => {
+        const labelIcon = L.divIcon({ html:`<div style="background:rgba(200,16,46,0.85);color:#fff;font-size:14px;font-weight:700;padding:2px 12px;border-radius:20px;border:2px solid #f1c40f;box-shadow:0 2px 12px rgba(0,0,0,0.3);text-shadow:0 1px 4px rgba(0,0,0,0.5);letter-spacing:1px;">${label.name}</div>`, iconSize:[0,0], iconAnchor:[0,0] });
+        L.marker([label.lat, label.lng], { icon:labelIcon, interactive:false, zIndexOffset:1000 }).addTo(map);
+    });
+
+    L.circleMarker([routePoints[0][0], routePoints[0][1]], { radius:10, color:'#00b894', fillColor:'#00b894', fillOpacity:1, weight:3 }).addTo(map).bindTooltip('长征起点', { direction:'top', permanent:true });
+    L.circleMarker([routePoints[routePoints.length-1][0], routePoints[routePoints.length-1][1]], { radius:10, color:'#fdcb6e', fillColor:'#fdcb6e', fillOpacity:1, weight:3 }).addTo(map).bindTooltip('长征终点', { direction:'top', permanent:true });
+
+    const firstItem = document.querySelector('.point-item');
+    if(firstItem){ firstItem.classList.add('active'); firstItem.style.background='#fff2f0'; firstItem.style.borderLeftColor='#c8102e'; }
+    setTimeout(() => { const group = L.featureGroup(markers); map.fitBounds(group.getBounds(), { padding:[80,80] }); }, 500);
+
+    const cover = document.getElementById('cover'), btnStart = document.getElementById('btnStart'), btnKnow = document.getElementById('btnKnow'), poemModal = document.getElementById('poemModal'), btnClosePoem = document.getElementById('btnClosePoem');
+    btnStart.addEventListener('click', function(){ cover.classList.add('hide'); btnKnow.classList.add('show'); setTimeout(()=>{ cover.style.display='none'; }, 700); });
+    btnKnow.addEventListener('click', function(){ poemModal.classList.add('show'); });
+    btnClosePoem.addEventListener('click', function(){ poemModal.classList.remove('show'); });
+    poemModal.addEventListener('click', function(e){ if(e.target===this) this.classList.remove('show'); });
+</script>
+</body>
+</html>
